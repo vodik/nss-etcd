@@ -1,0 +1,3 @@
+[submodule "cetcd"]
+	path = cetcd
+	url = https://github.com/shafreeck/cetcd.git
