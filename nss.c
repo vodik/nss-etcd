@@ -49,8 +49,9 @@ enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
     nss_alloc_init(&buf, buffer, buflen);
 
     cetcd_array addrs;
-    cetcd_array_init(&addrs, 1);
+    cetcd_array_init(&addrs, 2);
     cetcd_array_append(&addrs, "vodik.qa.sangoma.local:2379");
+    cetcd_array_append(&addrs, "glados.qa.sangoma.local:2379");
 
     cetcd_client client;
     cetcd_client_init(&client, &addrs);
@@ -82,11 +83,13 @@ enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
     char *r_name = nss_alloc(&buf, name_len + 1);
     strncpy(r_name, name, name_len);
 
-    result->h_name = r_name;
-    result->h_aliases = r_aliases;
-    result->h_addrtype = af;
-    result->h_length = addrlen;
-    result->h_addr_list = r_addr_list;
+    *result = (struct hostent) {
+        .h_name = r_name,
+        .h_aliases = r_aliases,
+        .h_addrtype = af,
+        .h_length = addrlen,
+        .h_addr_list = r_addr_list,
+    };
 
     *errnop = 0;
     *h_errnop = NETDB_SUCCESS;
