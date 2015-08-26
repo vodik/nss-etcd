@@ -26,7 +26,10 @@ static inline size_t align_ptr(size_t l)
 
 static void nss_alloc_init(struct nss_buf *buf, char *backing, size_t len)
 {
-    *buf = (struct nss_buf){ .block = backing, .len = len };
+    *buf = (struct nss_buf){
+        .block = backing,
+        .len = len
+    };
 }
 
 static void *nss_alloc(struct nss_buf *buf, size_t len)
@@ -87,7 +90,7 @@ enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
     char *r_name = nss_alloc(&buf, name_len + 1);
     strncpy(r_name, name, name_len);
 
-    *result = (struct hostent) {
+    *result = (struct hostent){
         .h_name = r_name,
         .h_aliases = r_aliases,
         .h_addrtype = af,
