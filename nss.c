@@ -37,6 +37,19 @@ static void *nss_alloc(struct nss_buf *buf, size_t len)
     return mem;
 }
 
+static char *etcd_lookup(const char *name, const char *type)
+{
+    cetcd_array addrs;
+    cetcd_array_init(&addrs, 2);
+    cetcd_array_append(&addrs, "vodik.qa.sangoma.local:2379");
+    cetcd_array_append(&addrs, "glados.qa.sangoma.local:2379");
+
+    cetcd_client client;
+    cetcd_client_init(&client, &addrs);
+
+    return etcd_get_record(&client, name, type);
+}
+
 enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
                                            int af,
                                            struct hostent *result,
@@ -48,16 +61,7 @@ enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
     struct nss_buf buf;
     nss_alloc_init(&buf, buffer, buflen);
 
-    cetcd_array addrs;
-    cetcd_array_init(&addrs, 2);
-    cetcd_array_append(&addrs, "vodik.qa.sangoma.local:2379");
-    cetcd_array_append(&addrs, "glados.qa.sangoma.local:2379");
-
-    cetcd_client client;
-    cetcd_client_init(&client, &addrs);
-
-    char *record = etcd_get_record(&client, name,
-                                   af == AF_INET ? "A" : "AAAA");
+    char *record = etcd_lookup(name, af == AF_INET ? "A" : "AAAA");
     if (!record) {
         *errnop = ESRCH;
         *h_errnop = HOST_NOT_FOUND;
