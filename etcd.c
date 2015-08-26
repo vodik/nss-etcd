@@ -1,8 +1,8 @@
 #include "etcd.h"
 
 #include <string.h>
-#include "cetcd/cetcd.h"
-#include "cetcd/third-party/yajl-2.1.0/src/api/yajl_tree.h"
+#include <cetcd.h>
+#include <yajl/yajl_tree.h>
 
 static char *name_to_key(const char *prefix, const char *name)
 {
@@ -61,6 +61,9 @@ char *etcd_get_record(cetcd_client *client, const char *name,const char *type)
     yajl_val v = yajl_tree_get(node, path, yajl_t_array);
     if (v) {
         yajl_val obj = v->u.array.values[0];
+        if (!obj)
+            return NULL;
+
         return strdup(YAJL_GET_STRING(obj));
     } else {
         return NULL;
