@@ -7,7 +7,6 @@
 #include <resolv.h>
 #include <arpa/inet.h>
 #include <cetcd.h>
-#include <yajl/yajl_tree.h>
 #include <assert.h>
 
 #include "etcd.h"
@@ -42,10 +41,16 @@ static void *nss_alloc(struct nss_buf *buf, size_t len)
 
 static char *etcd_lookup(const char *name, const char *type)
 {
+    static const char *servers[] = {
+        "vodik.qa.sangoma.local:2379",
+        "glados.qa.sangoma.local:2379"
+    };
+    static size_t server_count = sizeof(servers) / sizeof(servers[0]);
+
     cetcd_array addrs;
-    cetcd_array_init(&addrs, 2);
-    cetcd_array_append(&addrs, "vodik.qa.sangoma.local:2379");
-    cetcd_array_append(&addrs, "glados.qa.sangoma.local:2379");
+    cetcd_array_init(&addrs, server_count);
+    for (size_t idx = 0; idx < server_count; ++idx)
+        cetcd_array_append(&addrs, servers[idx]);
 
     cetcd_client client;
     cetcd_client_init(&client, &addrs);
