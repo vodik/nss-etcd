@@ -8,8 +8,8 @@ CFLAGS := -std=c11 -fPIC \
 LDLIBS= -lcetcd -lcurl
 MODULE = libnss_etcd.so.2
 
-$(MODULE): nss.o
-	$(CC) -fPIC -Wall -shared -o $(MODULE) -Wl,-soname,$(MODULE) $^
+$(MODULE): nss.o etcd.o
+	$(CC) -fPIC -Wall -shared -o $(MODULE) -Wl,-soname,$(MODULE) $^ $(LDLIBS)
 
 clean:
 	$(RM) search *.o

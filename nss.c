@@ -1,26 +1,15 @@
+#include "nss.h"
+
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
-#include <nss.h>
-#include <netdb.h>
+#include <resolv.h>
 #include <arpa/inet.h>
 
+#include "etcd.h"
 #include "cetcd/cetcd.h"
 #include "cetcd/third-party/yajl-2.1.0/src/api/yajl_tree.h"
-
-#define IN6ADDRSZ 16
-#define INADDRSZ 4
-
-
-enum nss_status _nss_blacklist_gethostbyname2_r(const char *name,
-                                                int af,
-                                                struct hostent *result,
-                                                char *buffer,
-                                                size_t buflen,
-                                                int *errnop,
-                                                int *h_errnop);
 
 /* static inline size_t align_ptr(size_t l) */
 /* { */
@@ -28,66 +17,42 @@ enum nss_status _nss_blacklist_gethostbyname2_r(const char *name,
 /*     return (l + a) & ~a; */
 /* } */
 
-static void cetcd_setup(cetcd_client *client)
+enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
+                                           int af,
+                                           struct hostent *result,
+                                           char *buffer,
+                                           size_t buflen,
+                                           int *errnop,
+                                           int *h_errnop)
 {
     cetcd_array addrs;
     cetcd_array_init(&addrs, 1);
     cetcd_array_append(&addrs, "vodik.qa.sangoma.local:2379");
 
-    cetcd_client_init(client, &addrs);
-}
-
-enum nss_status _nss_blacklist_gethostbyname2_r(const char *name,
-                                                int af,
-                                                struct hostent *result,
-                                                char *buffer,
-                                                size_t buflen,
-                                                int *errnop,
-                                                int *h_errnop)
-{
     cetcd_client client;
-    cetcd_response *resp;
+    cetcd_client_init(&client, &addrs);
 
-    cetcd_setup(&client);
-    resp = cetcd_get(&client, "/address/local/sangoma/qa/tektite");
-    if (resp->err) {
+    char *record = etcd_get_record(&client, name,
+                                   af == AF_INET ? "A" : "AAAA");
+
+    if (!record) {
         *errnop = ESRCH;
         *h_errnop = HOST_NOT_FOUND;
         return NSS_STATUS_NOTFOUND;
     }
-
-    memset(buffer, '\0', buflen);
 
     size_t idx = 0;
-    size_t addrlen;
     char *r_name, **r_aliases, *r_addr, **r_addr_list;
 
-    size_t l = strlen(name);
+    size_t name_len = strlen(name);
+    r_addr = buffer;
 
-    char errbuf[1024];
-    yajl_val node = yajl_tree_parse(resp->node->value, errbuf, sizeof(errbuf));
-    if (!node) {
-        *errnop = ESRCH;
-        *h_errnop = HOST_NOT_FOUND;
-        return NSS_STATUS_NOTFOUND;
-    }
-
-    const char* path[] = {af == AF_INET ? "A" : "AAAA", NULL};
-    yajl_val v = yajl_tree_get(node, path, yajl_t_array);
-    if (v) {
-        yajl_val obj = v->u.array.values[0];
-
-        addrlen = af == AF_INET ? INADDRSZ : IN6ADDRSZ;
-        r_addr = buffer;
-        inet_pton(af, YAJL_GET_STRING(obj), r_addr);
-    } else {
-        *errnop = ESRCH;
-        *h_errnop = HOST_NOT_FOUND;
-        return NSS_STATUS_NOTFOUND;
-    }
-    cetcd_response_release(resp);
+    size_t addrlen = af == AF_INET ? INADDRSZ : IN6ADDRSZ;
+    inet_pton(af, record, r_addr);
+    free(record);
 
     /* Second, place the address list */
+    buffer += addrlen;
     r_addr_list = (char **)(buffer + idx);
     r_addr_list[0] = r_addr;
     r_addr_list[1] = NULL;
@@ -99,7 +64,7 @@ enum nss_status _nss_blacklist_gethostbyname2_r(const char *name,
     idx += sizeof(char *);
 
     r_name = buffer + idx;
-    memcpy(r_name, name, l + 1);
+    memcpy(r_name, name, name_len + 1);
 
     result->h_name = r_name;
     result->h_aliases = (char **)r_aliases;
@@ -109,7 +74,5 @@ enum nss_status _nss_blacklist_gethostbyname2_r(const char *name,
 
     *errnop = 0;
     *h_errnop = NETDB_SUCCESS;
-    h_errno = 0;
-
     return NSS_STATUS_SUCCESS;
 }
