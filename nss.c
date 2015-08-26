@@ -12,7 +12,7 @@
 
 #include "etcd.h"
 
-struct buffer {
+struct nss_buf {
     char *block;
     size_t len;
     size_t offset;
@@ -24,12 +24,12 @@ static inline size_t align_ptr(size_t l)
     return (l + a) & ~a;
 }
 
-static void nss_alloc_init(struct buffer *buf, char *backing, size_t len)
+static void nss_alloc_init(struct nss_buf *buf, char *backing, size_t len)
 {
-    *buf = (struct buffer){ .block = backing, .len = len };
+    *buf = (struct nss_buf){ .block = backing, .len = len };
 }
 
-static void *nss_alloc(struct buffer *buf, size_t len)
+static void *nss_alloc(struct nss_buf *buf, size_t len)
 {
     void *mem = &buf->block[buf->offset];
     buf->offset = align_ptr(buf->offset + len);
@@ -45,7 +45,7 @@ enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
                                            int *errnop,
                                            int *h_errnop)
 {
-    struct buffer buf;
+    struct nss_buf buf;
     nss_alloc_init(&buf, buffer, buflen);
 
     cetcd_array addrs;
