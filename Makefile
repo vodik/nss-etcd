@@ -5,14 +5,8 @@ CFLAGS := -std=c11 -fPIC \
 	-ggdb3 -O0 \
 	$(CFLAGS)
 
-LDFLAGS= -Lcetcd
-
-LDLIBS=-lcetcd -lcurl
-
+LDLIBS= -lcetcd -lcurl
 MODULE = libnss_etcd.so.2
-
-all: nss #$(MODULE)
-nss: nss.o
 
 $(MODULE): nss.o
 	$(CC) -fPIC -Wall -shared -o $(MODULE) -Wl,-soname,$(MODULE) $^
