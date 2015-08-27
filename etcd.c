@@ -8,37 +8,29 @@ static char *name_to_key(const char *prefix, const char *name)
 {
     size_t name_len = strlen(name);
     size_t prefix_len = strlen(prefix);
-
     char *keyfile = malloc(name_len + prefix_len + 3);
     if (!keyfile) {
         return NULL;
     }
 
-    char *p = keyfile;
+    char *ptr = keyfile;
+    *ptr++ = '/';
+    ptr = mempcpy(ptr, prefix, prefix_len);
+    *ptr++ = '/';
 
-    *p++ = '/';
-    p = mempcpy(p, prefix, prefix_len);
-    *p++ = '/';
+    const char *dot;
+    while ((dot = memrchr(name, '.', name_len))) {
+        dot++;
 
-    const char *f = name;
-
-    for (;;) {
-        const char *point = memrchr(f, '.', name_len);
-        if (!point) {
-            p = mempcpy(p, f, name_len);
-            *p = 0;
-            break;
-        }
-
-        point++;
-        size_t end_len = name_len - (point - f);
-
-        p = mempcpy(p, point, end_len);
-        *p++ = '/';
+        size_t end_len = name_len - (dot - name);
+        ptr = mempcpy(ptr, dot, end_len);
+        *ptr++ = '/';
 
         name_len -= end_len + 1;
     }
 
+    ptr = mempcpy(ptr, name, name_len);
+    *ptr = '\0';
     return keyfile;
 }
 
