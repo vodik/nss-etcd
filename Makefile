@@ -6,12 +6,13 @@ CFLAGS := -std=c11 -fPIC \
 	$(CFLAGS)
 
 LDLIBS= -lcetcd -lcurl
-MODULE = libnss_etcd.so.2
 
-$(MODULE): nss.o etcd.o
-	$(CC) -fPIC -Wall -shared -o $(MODULE) -Wl,-soname,$(MODULE) $^ $(LDLIBS)
+all: libnss_etcd.so.2 etcdlookup
+etcdlookup: nss.o etcd.o etcdlookup.o
+libnss_etcd.so.2: nss.o etcd.o
+	$(CC) -fPIC -Wall -shared -o libnss_etcd.so.2 -Wl,-soname,libnss_etcd.so.2 $^ $(LDLIBS)
 
 clean:
-	$(RM) search *.o
+	$(RM) etcdlookup libnss_etcd.so.2 *.o
 
 .PHONY: clean
