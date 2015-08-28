@@ -98,7 +98,8 @@ enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
 
     size_t name_len = strlen(name);
     char *r_name = nss_alloc(&buf, name_len + 1);
-    strncpy(r_name, name, name_len);
+    memcpy(r_name, name, name_len);
+    r_name[name_len] = '\0';
 
     *result = (struct hostent){
         .h_name = r_name,
