@@ -54,7 +54,6 @@ static char *etcd_lookup(const char *name, const char *type)
 
     cetcd_client client;
     cetcd_client_init(&client, &addrs);
-
     return etcd_get_record(&client, name, type);
 }
 
