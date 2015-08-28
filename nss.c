@@ -47,14 +47,20 @@ static char *etcd_lookup(const char *name, const char *type)
     };
     static size_t server_count = sizeof(servers) / sizeof(servers[0]);
 
+    cetcd_client client;
     cetcd_array addrs;
+
     cetcd_array_init(&addrs, server_count);
     for (size_t idx = 0; idx < server_count; ++idx)
         cetcd_array_append(&addrs, servers[idx]);
 
-    cetcd_client client;
     cetcd_client_init(&client, &addrs);
-    return etcd_get_record(&client, name, type);
+
+    char *record = etcd_get_record(&client, name, type);
+
+    cetcd_client_destroy(&client);
+    cetcd_array_destroy(&addrs);
+    return record;
 }
 
 enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
