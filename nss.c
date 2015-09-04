@@ -12,6 +12,10 @@
 
 #include "etcd.h"
 
+static bool cetcd_initialized = false;
+static cetcd_client client = {};
+static cetcd_array addrs = {};
+
 struct nss_buf {
     char *block;
     size_t len;
@@ -39,16 +43,6 @@ static void *nss_alloc(struct nss_buf *buf, size_t len)
     assert(buf->offset <= buf->len);
     return mem;
 }
-
-static const char *servers[] = {
-    "vodik.qa.sangoma.local:2379",
-    "glados.qa.sangoma.local:2379"
-};
-static size_t server_count = sizeof(servers) / sizeof(servers[0]);
-
-static bool cetcd_initialized = false;
-static cetcd_client client = {};
-static cetcd_array addrs = {};
 
 enum nss_status _nss_etcd_init(void)
 {
