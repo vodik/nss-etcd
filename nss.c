@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 #include <resolv.h>
@@ -39,28 +40,39 @@ static void *nss_alloc(struct nss_buf *buf, size_t len)
     return mem;
 }
 
-static char *etcd_lookup(const char *name, const char *type)
-{
-    static const char *servers[] = {
-        "vodik.qa.sangoma.local:2379",
-        "glados.qa.sangoma.local:2379"
-    };
-    static size_t server_count = sizeof(servers) / sizeof(servers[0]);
+static const char *servers[] = {
+    "vodik.qa.sangoma.local:2379",
+    "glados.qa.sangoma.local:2379"
+};
+static size_t server_count = sizeof(servers) / sizeof(servers[0]);
 
-    cetcd_client client;
-    cetcd_array addrs;
+static bool cetcd_initialized = false;
+static cetcd_client client = {};
+static cetcd_array addrs = {};
+
+enum nss_status _nss_etcd_init(void)
+{
+    if (cetcd_initialized)
+        return NSS_STATUS_SUCCESS;
 
     cetcd_array_init(&addrs, server_count);
     for (size_t idx = 0; idx < server_count; ++idx)
         cetcd_array_append(&addrs, servers[idx]);
 
     cetcd_client_init(&client, &addrs);
+    cetcd_initialized = true;
 
-    char *record = etcd_get_record(&client, name, type);
+    return NSS_STATUS_SUCCESS;
+}
 
-    cetcd_client_destroy(&client);
+enum nss_status _nss_etcd_quit(void)
+{
+    if (!cetcd_initialized)
+        return NSS_STATUS_SUCCESS;
+
     cetcd_array_destroy(&addrs);
-    return record;
+    cetcd_client_destroy(&client);
+    return NSS_STATUS_SUCCESS;
 }
 
 enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
@@ -74,7 +86,7 @@ enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
     struct nss_buf buf;
     nss_alloc_init(&buf, buffer, buflen);
 
-    char *record = etcd_lookup(name, af == AF_INET ? "A" : "AAAA");
+    char *record = etcd_get_record(&client, name, af == AF_INET ? "A" : "AAAA");
     if (!record) {
         *errnop = ESRCH;
         *h_errnop = HOST_NOT_FOUND;

@@ -1,6 +1,7 @@
 CFLAGS := -std=c11 -fPIC \
 	-Wall -Wextra -pedantic \
 	-Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes \
+	-Wno-gnu-empty-initializer \
 	-D_GNU_SOURCE \
 	-ggdb3 -O0 \
 	$(CFLAGS)

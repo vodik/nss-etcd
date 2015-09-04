@@ -15,6 +15,7 @@ int main(int argc, char *argv[])
     char buffer[2048];
     int errnop, h_errnop;
 
+    _nss_etcd_init();
     enum nss_status status = _nss_etcd_gethostbyname2_r(name,
                                                         AF_INET,
                                                         &result,
@@ -22,6 +23,8 @@ int main(int argc, char *argv[])
                                                         sizeof(buffer),
                                                         &errnop,
                                                         &h_errnop);
+    _nss_etcd_quit();
+
     switch (status) {
     case NSS_STATUS_SUCCESS:
         printf("successfully resolved\n");
