@@ -44,39 +44,91 @@ static void *nss_alloc(struct nss_buf *buf, size_t len)
     return mem;
 }
 
-enum nss_status _nss_etcd_init(void)
+/* enum nss_status _nss_etcd_init(void) */
+static cetcd_client *etcd_init(void)
 {
-    if (cetcd_initialized)
-        return NSS_STATUS_SUCCESS;
+    if (!cetcd_initialized) {
+        cetcd_array_init(&addrs, server_count);
+        for (size_t idx = 0; idx < server_count; ++idx)
+            cetcd_array_append(&addrs, servers[idx]);
 
-    cetcd_array_init(&addrs, server_count);
-    for (size_t idx = 0; idx < server_count; ++idx)
-        cetcd_array_append(&addrs, servers[idx]);
+        cetcd_client_init(&client, &addrs);
+    }
 
-    cetcd_client_init(&client, &addrs);
     cetcd_initialized = true;
-
-    return NSS_STATUS_SUCCESS;
+    return &client;
 }
 
 enum nss_status _nss_etcd_quit(void)
 {
-    if (!cetcd_initialized)
-        return NSS_STATUS_SUCCESS;
+    if (cetcd_initialized) {
+        cetcd_array_destroy(&addrs);
+        cetcd_client_destroy(&client);
+    }
 
-    cetcd_array_destroy(&addrs);
-    cetcd_client_destroy(&client);
+    cetcd_initialized = false;
     return NSS_STATUS_SUCCESS;
 }
 
-enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
-                                           int af,
-                                           struct hostent *result,
-                                           char *buffer,
-                                           size_t buflen,
-                                           int *errnop,
-                                           int *h_errnop)
+enum nss_status _nss_etcd_gethostbyname4_r(const char *name,
+                                           struct gaih_addrtuple **pat,
+                                           char *buffer, size_t buflen,
+                                           int *errnop, int *h_errnop,
+                                           int32_t *ttlp)
 {
+    cetcd_client *_client = etcd_init();
+
+    struct nss_buf buf;
+    nss_alloc_init(&buf, buffer, buflen);
+
+    char *record = etcd_get_record(_client, name, "A");
+    if (!record) {
+        *errnop = ESRCH;
+        *h_errnop = HOST_NOT_FOUND;
+        return NSS_STATUS_NOTFOUND;
+    }
+
+    size_t name_len = strlen(name);
+    char *r_name = nss_alloc(&buf, name_len + 1);
+    memcpy(r_name, name, name_len);
+    r_name[name_len] = '\0';
+
+    struct gaih_addrtuple *r_tuple = nss_alloc(&buf, sizeof(*r_tuple));
+    *r_tuple = (struct gaih_addrtuple){
+        .next = NULL,
+        .name = r_name,
+        .family = AF_INET,
+        .scopeid = 0
+    };
+    inet_pton(AF_INET, record, r_tuple->addr);
+
+    /* Nscd expects us to store the first record in **pat. */
+    if (*pat) {
+        printf("poop\n");
+        **pat = *r_tuple;
+    } else {
+        printf("poop2\n");
+        *pat = r_tuple;
+    }
+
+    if (ttlp)
+        *ttlp = 0;
+
+    *errnop = 0;
+    *h_errnop = NETDB_SUCCESS;
+    h_errno = 0;
+
+    return NSS_STATUS_SUCCESS;
+
+}
+
+enum nss_status _nss_etcd_gethostbyname2_r(const char *name,
+                                           int af, struct hostent *result,
+                                           char *buffer, size_t buflen,
+                                           int *errnop, int *h_errnop)
+{
+    etcd_init();
+
     struct nss_buf buf;
     nss_alloc_init(&buf, buffer, buflen);
 
